@@ -57,6 +57,13 @@
 <div class="container">
     <h1>갈월 MMR 발사대 (Local Edition)</h1>
 
+<!-- 광고 영역 -->
+<div id="ad-container" style="max-width: 1100px; margin: 10px auto; text-align: center;">
+    <a id="ad-link" href="#" target="_blank">
+        <img id="ad-image" src="" style="width: 100%; border-radius: 8px; display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+    </a>
+</div>
+
     <!-- 데이터 이관 -->
     <div class="import-box">
         <h3>📥 기존 서버 데이터 이관 (재측정)</h3>
@@ -141,6 +148,33 @@
     const KDA_WEIGHT = 4;
 
     let scores = {}; // 서버에서 받아온 데이터를 담을 변수
+
+    async function loadDataFromServer() {
+    try {
+        const response = await fetch(API_URL);
+        const result = await response.json();
+        
+        // 전적 데이터 업데이트
+        scores = result.players; 
+        
+        // 광고 데이터 업데이트
+        const adImg = document.getElementById('ad-image');
+        const adLink = document.getElementById('ad-link');
+        
+        if (result.ad && result.ad.image) {
+            adImg.src = result.ad.image;
+            adLink.href = result.ad.link;
+            adImg.style.display = 'block'; // 정보가 있을 때만 표시
+        } else {
+            adImg.style.display = 'none';
+        }
+
+        renderScoreboard();
+        renderSelectionList();
+    } catch (e) {
+        console.error("데이터 로드 실패:", e);
+    }
+}
 
     // 플레이어 추가 기능 (서버 연동 버전)
 async function addNewPlayer() {
