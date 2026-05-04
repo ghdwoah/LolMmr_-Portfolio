@@ -149,44 +149,59 @@
 
     let scores = {}; // 서버에서 받아온 데이터를 담을 변수
 
-    // 플레이어 추가 기능 (서버 연동 버전)
-async function addNewPlayer() {
-    const name = document.getElementById('player-name-input').value.trim();
-    
-    if (!name) return alert("이름을 입력해주세요.");
-    if (scores[name]) return alert("이미 존재하는 플레이어입니다.");
+// [통합] 서버 데이터 로드 함수 (전적 + 광고)
+    async function loadDataFromServer() {
+        try {
+            const response = await fetch(API_URL);
+            const result = await response.json();
+            
+            // 1. 전적 데이터 업데이트 (서버에서 'players' 키로 보내줄 때)
+            scores = result.players || result; // 구조에 따라 유연하게 대응
+            
+            // 2. 광고 데이터 업데이트
+            const adImg = document.getElementById('ad-image');
+            const adLink = document.getElementById('ad-link');
+            
+            if (result.ad && result.ad.image) {
+                adImg.src = result.ad.image;
+                adLink.href = result.ad.link;
+                adImg.style.display = 'inline-block';
+            } else {
+                adImg.style.display = 'none';
+            }
 
-    const btn = document.querySelector('.btn-add');
-    const originalText = btn.innerText;
-    btn.innerText = "추가 중...";
-    btn.disabled = true;
-
-    try {
-        // 서버(구글 시트)에 기본 데이터 한 줄 추가
-        // 결과값은 'init'으로 보내서 계산에 영향을 주지 않도록 설정
-        const newPlayerData = [{
-            name: name,
-            result: 'init', // 초기화용 키워드
-            k: 0,
-            d: 0,
-            a: 0
-        }];
-
-        await fetch(API_URL, {
-            method: 'POST',
-            body: JSON.stringify(newPlayerData)
-        });
-
-        alert(`${name}님이 추가되었습니다.`);
-        document.getElementById('player-name-input').value = '';
-        await loadDataFromServer(); // 데이터 새로고침
-    } catch (e) {
-        alert("플레이어 추가에 실패했습니다.");
-    } finally {
-        btn.innerText = originalText;
-        btn.disabled = false;
+            renderScoreboard();
+            renderSelectionList();
+        } catch (e) {
+            console.error("데이터 로드 실패:", e);
+            alert("서버 연동에 실패했습니다. API URL이나 배포 설정을 확인하세요.");
+        }
     }
-}
+
+    // 플레이어 추가 기능 (서버 연동 버전)
+    async function addNewPlayer() {
+        const name = document.getElementById('player-name-input').value.trim();
+        if (!name) return alert("이름을 입력해주세요.");
+        if (scores[name]) return alert("이미 존재하는 플레이어입니다.");
+
+        const btn = document.querySelector('.btn-add');
+        const originalText = btn.innerText;
+        btn.innerText = "추가 중...";
+        btn.disabled = true;
+
+        try {
+            const newPlayerData = [{ name: name, result: 'init', k: 0, d: 0, a: 0 }];
+            await fetch(API_URL, { method: 'POST', body: JSON.stringify(newPlayerData) });
+            alert(`${name}님이 추가되었습니다.`);
+            document.getElementById('player-name-input').value = '';
+            await loadDataFromServer();
+        } catch (e) {
+            alert("플레이어 추가 실패");
+        } finally {
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
+    }
 
 async function importAndRecalculate() {
     const input = document.getElementById('json-import-input').value;
@@ -216,34 +231,6 @@ async function importAndRecalculate() {
             loadDataFromServer();
         }
     } catch (e) { alert("JSON 형식이 잘못되었습니다."); }
-}
-
-    // 1. 페이지가 로드될 때 서버에서 데이터를 가져옵니다.
-    async function loadDataFromServer() {
-    try {
-        const response = await fetch(API_URL);
-        const result = await response.json();
-        
-        // 전적 데이터 업데이트
-        scores = result.players; 
-        
-        // 광고 데이터 업데이트
-        const adImg = document.getElementById('ad-image');
-        const adLink = document.getElementById('ad-link');
-        
-        if (result.ad && result.ad.image) {
-            adImg.src = result.ad.image;
-            adLink.href = result.ad.link;
-            adImg.style.display = 'block'; // 정보가 있을 때만 표시
-        } else {
-            adImg.style.display = 'none';
-        }
-
-        renderScoreboard();
-        renderSelectionList();
-    } catch (e) {
-        console.error("데이터 로드 실패:", e);
-    }
 }
 
     function renderScoreboard() {
