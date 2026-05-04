@@ -142,6 +142,45 @@
 
     let scores = {}; // 서버에서 받아온 데이터를 담을 변수
 
+    // 플레이어 추가 기능 (서버 연동 버전)
+async function addNewPlayer() {
+    const name = document.getElementById('player-name-input').value.trim();
+    
+    if (!name) return alert("이름을 입력해주세요.");
+    if (scores[name]) return alert("이미 존재하는 플레이어입니다.");
+
+    const btn = document.querySelector('.btn-add');
+    const originalText = btn.innerText;
+    btn.innerText = "추가 중...";
+    btn.disabled = true;
+
+    try {
+        // 서버(구글 시트)에 기본 데이터 한 줄 추가
+        // 결과값은 'init'으로 보내서 계산에 영향을 주지 않도록 설정
+        const newPlayerData = [{
+            name: name,
+            result: 'init', // 초기화용 키워드
+            k: 0,
+            d: 0,
+            a: 0
+        }];
+
+        await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify(newPlayerData)
+        });
+
+        alert(`${name}님이 추가되었습니다.`);
+        document.getElementById('player-name-input').value = '';
+        await loadDataFromServer(); // 데이터 새로고침
+    } catch (e) {
+        alert("플레이어 추가에 실패했습니다.");
+    } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+    }
+}
+
 async function importAndRecalculate() {
     const input = document.getElementById('json-import-input').value;
     if (!input.trim()) return alert("JSON 데이터를 입력해주세요.");
