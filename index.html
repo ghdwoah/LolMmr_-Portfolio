@@ -149,22 +149,22 @@
 
     let scores = {}; // 서버에서 받아온 데이터를 담을 변수
 
-// [통합] 서버 데이터 로드 함수 (전적 + 광고)
+    // [통합] 서버 데이터 로드 함수
     async function loadDataFromServer() {
         try {
             const response = await fetch(API_URL);
             const result = await response.json();
             
-            // 1. 전적 데이터 업데이트 (서버에서 'players' 키로 보내줄 때)
-            scores = result.players || result; // 구조에 따라 유연하게 대응
+            // 데이터 구조 파악 후 할당 (result.players가 있으면 그것을 사용)
+            scores = result.players || result; 
             
-            // 2. 광고 데이터 업데이트
+            // 광고 데이터 업데이트
             const adImg = document.getElementById('ad-image');
             const adLink = document.getElementById('ad-link');
             
-            if (result.ad && result.ad.image) {
+            if (result.ad && result.ad.image && result.ad.image.trim() !== "") {
                 adImg.src = result.ad.image;
-                adLink.href = result.ad.link;
+                adLink.href = result.ad.link || "#";
                 adImg.style.display = 'inline-block';
             } else {
                 adImg.style.display = 'none';
@@ -174,7 +174,7 @@
             renderSelectionList();
         } catch (e) {
             console.error("데이터 로드 실패:", e);
-            alert("서버 연동에 실패했습니다. API URL이나 배포 설정을 확인하세요.");
+            alert("서버 연동에 실패했습니다. 구글 시트 배포 설정을 확인하세요.");
         }
     }
 
@@ -236,21 +236,27 @@ async function importAndRecalculate() {
     function renderScoreboard() {
         const tbody = document.querySelector('#scoreboard tbody');
         tbody.innerHTML = '';
-        const names = Object.keys(scores).sort((a, b) => scores[b].mmr - scores[a].mmr);
+        
+        if (!scores || Object.keys(scores).length === 0) return;
+
+        const names = Object.keys(scores).sort((a, b) => (scores[b].mmr || 0) - (scores[a].mmr || 0));
 
         names.forEach((name, idx) => {
             const p = scores[name];
-            const wins = p.gameRecords.filter(r => r.result === 'win').length;
-            const total = p.gameRecords.length;
+            // [핵심 수정] 기록이 없을 경우 빈 배열로 처리하여 filter 에러 방지
+            const records = p.gameRecords || []; 
+            
+            const wins = records.filter(r => r.result === 'win').length;
+            const total = records.length;
             const winRate = total > 0 ? ((wins / total) * 100).toFixed(1) + "%" : "0%";
             
             const row = tbody.insertRow();
             row.innerHTML = `
                 <td>${idx + 1}</td>
                 <td>${name}</td>
-                <td><span class="mmr-score">${p.mmr}</span></td>
+                <td><span class="mmr-score">${p.mmr || BASE_MMR}</span></td>
                 <td><strong>${winRate}</strong> (${wins}승 ${total - wins}패)</td>
-                <td>${getKDAStr(p.gameRecords)}</td>
+                <td>${getKDAStr(records)}</td>
                 <td>
                     <button class="btn" onclick="openRecordsModal('${name}')">상세</button>
                 </td>
@@ -259,10 +265,10 @@ async function importAndRecalculate() {
     }
 
     function getKDAStr(records) {
-        if (records.length === 0) return "0/0/0 (0.00)";
-        const totalK = records.reduce((s, r) => s + r.k, 0);
-        const totalD = records.reduce((s, r) => s + r.d, 0);
-        const totalA = records.reduce((s, r) => s + r.a, 0);
+        if (!records || records.length === 0) return "0/0/0 (0.00)";
+        const totalK = records.reduce((s, r) => s + (r.k || 0), 0);
+        const totalD = records.reduce((s, r) => s + (r.d || 0), 0);
+        const totalA = records.reduce((s, r) => s + (r.a || 0), 0);
         
         const avgK = (totalK / records.length).toFixed(1);
         const avgD = (totalD / records.length).toFixed(1);
@@ -327,7 +333,7 @@ async function importAndRecalculate() {
         document.getElementById('modal-player-name').innerText = `${name}님의 상세 기록`;
         const tbody = document.getElementById('records-tbody');
         tbody.innerHTML = '';
-        const records = [...scores[name].gameRecords].reverse();
+        const records = [...(scores[name].gameRecords || [])].reverse();
         records.forEach((r) => {
             const row = tbody.insertRow();
             row.innerHTML = `
